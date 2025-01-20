@@ -10,6 +10,7 @@ import './index.css';
 import NotFound from './pages/NotFound';
 import { useTranslation } from 'react-i18next';
 import App from './App';
+import OpenLayersMap from './pages/openlayers/OpenLayersMap';
 
 
 
@@ -20,7 +21,7 @@ function Main() {
   return (
     <Router>
       <Routes>
-        <Route path="/" element={<App />} />
+        <Route path="/" element={<OpenLayersMap />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
