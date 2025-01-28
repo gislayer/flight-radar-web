@@ -44,6 +44,7 @@ export interface Pilot {
 
 export interface PathFeatureProperties {
   id: number;
+  type?: number;
   altitude: number;
   bearing: number;
   speed: number;

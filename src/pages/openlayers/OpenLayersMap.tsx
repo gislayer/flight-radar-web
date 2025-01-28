@@ -15,11 +15,12 @@ import Icon from 'ol/style/Icon';
 import 'ol/ol.css';
 import API from '../../utils/API';
 import {bbox} from '@turf/turf';
-import { CurrentFlightData, FlightData, Path } from '../../types';
+import { CurrentFlightData, FlightData, Path, PathFeature } from '../../types';
 import VectorLayer from 'ol/layer/Vector';
 import { transformExtent } from 'ol/proj';
 import { Zoom } from 'ol/control';
 import { XYZ } from 'ol/source';
+import InfoCard from '../../components/InfoCard';
 const VITE_API_URL = import.meta.env.VITE_API_URL;
 
 const OpenLayersMap = () => {
@@ -33,6 +34,7 @@ const OpenLayersMap = () => {
   const lastUpdateTimeRef = useRef<number>(Date.now());
   const currentPositionsRef = useRef<{[key: string]: {x: number, y: number, bearing: number}}>({});
   const targetPositionsRef = useRef<{[key: string]: {x: number, y: number, bearing: number}}>({});
+  const currentAircraftRef = useRef<VectorLayer | null>(null);
   const [aircraftData,setAircraftData] = useState<FlightData | null>(null);
   const highlightAircraftRef = useRef<VectorLayer | null>(null);
   var api = new API({newurl:VITE_API_URL});
@@ -87,7 +89,7 @@ const OpenLayersMap = () => {
 
   const flyToBBox = (bbox:number[])=>{
     if(mapInstanceRef.current){
-      mapInstanceRef.current.getView().fit(bbox, {duration: 500, padding:[100,100,100,100]});
+      mapInstanceRef.current.getView().fit(bbox, {duration: 500, padding:[100,100,100,400]});
     }
   }
 
@@ -112,6 +114,24 @@ const OpenLayersMap = () => {
       animationFrameRef.current = requestAnimationFrame(animate);
     }
   };
+
+  const addCurrentAircraft = ()=>{
+    if(currentAircraftRef.current){
+      return currentAircraftRef.current;
+    }
+    currentAircraftRef.current = new VectorLayer({
+      source: new VectorSource({
+        features: new GeoJSON().readFeatures({type:'FeatureCollection', features:[]}, {
+          featureProjection: 'EPSG:3857'
+        })
+      }),
+      style: (feature:any)=>{
+        debugger;
+        return getAircraftStyle(feature.getProperties() as CurrentFlightData,true);
+      }
+    });
+    return currentAircraftRef.current;
+  }
 
   const addHighlightAircraft = ()=>{
     if(highlightAircraftRef.current){
@@ -188,7 +208,7 @@ const OpenLayersMap = () => {
       new Style({
         image: new Icon({
           src: `/icons/typeg-${props.type}.png`,
-          height: 22,
+          height: highlight?25:22,
           rotation: (props?.bearing || props.bearing) * Math.PI/180, 
           opacity: 1,
           //color: 'rgba(0, 0, 0, 0.5)',
@@ -198,7 +218,7 @@ const OpenLayersMap = () => {
       new Style({
         image: new Icon({
           src: `/icons/types${highlight ? 'h' : ''}-${props.type}.png`,
-          height: 20,
+          height: highlight?25:20,
           rotation: (props?.bearing || props.bearing) * Math.PI/180,
         })
       })
@@ -232,6 +252,15 @@ const OpenLayersMap = () => {
     return `http://localhost:2004/lastpoints/${datetime}/{z}/{x}/{y}.pbf`;
   }
 
+  const setAircraftPosition = (p:PathFeature)=>{
+    const source = currentAircraftRef.current?.getSource();
+    if(source){
+      source.clear();
+      var feature = new GeoJSON({dataProjection:'EPSG:4326', featureProjection:'EPSG:3857'}).readFeature(p);
+      source.addFeature(feature);
+    }
+  }
+
   useEffect(()=>{
     if(mapInstanceRef.current){
       var zoom = mapInstanceRef.current?.getView().getZoom();
@@ -259,6 +288,7 @@ const OpenLayersMap = () => {
     var layer = addVectorTileLayer();
     var path = addPathLayer();
     var highlightAircraft = addHighlightAircraft();
+    var currentAircraft = addCurrentAircraft();
 
     const map = new Map({
       target: mapRef.current,
@@ -266,7 +296,8 @@ const OpenLayersMap = () => {
         basemap,
         path,
         layer,
-        highlightAircraft
+        highlightAircraft,
+        currentAircraft
       ],
       view: new View({
         center: [0, 0],
@@ -337,16 +368,22 @@ const OpenLayersMap = () => {
   }, []);
 
   return (
-    <div 
-      ref={mapRef} 
-      style={{ 
-        width: '100vw', 
-        height: '100vh', 
-        position: 'absolute', 
-        top: 0, 
-        left: 0 
-      }}
-    />
+    <div>
+      { aircraftData && <InfoCard data={aircraftData} onChange={(p:PathFeature)=>{
+        debugger;
+        setAircraftPosition(p);
+      }}/> }
+      <div 
+        ref={mapRef} 
+        style={{ 
+          width: '100vw', 
+          height: '100vh', 
+          position: 'absolute', 
+          top: 0, 
+          left: 0 
+        }}
+      />
+    </div>
   );
 };
 

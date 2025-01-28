@@ -3,9 +3,80 @@
 @tailwind utilities;
 
 .custom-zoom {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    left: auto;
-  }
-  
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  left: auto;
+}
+.sidebar-container {
+  position: fixed;
+  left: -400px;
+  top: 0;
+  width: 350px;
+  height: 100vh;
+  background: rgba(255,255,255,0.85);
+  color: black;
+  transition: left 0.3s ease-in-out;
+  z-index: 1000;
+  box-sizing: border-box;
+  padding: 0;
+  box-shadow: 8px 0 15px -3px rgba(0, 0, 0, 0.4);
+}
+
+.sidebar-container.open {
+  left: 0;
+}
+
+.close-button {
+  position: absolute;
+  right: 20px;
+  top: 20px;
+  background: transparent;
+  border: none;
+  color: black;
+  font-size: 24px;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  opacity: 0.8;
+}
+
+.info-content {
+  margin-top: 50px;
+}
+
+.info-row {
+  margin: 10px 0;
+  padding: 10px;
+  border-bottom: 1px solid rgba(255,255,255,1);
+}
+
+.plane-slider {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+.plane-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 32px;
+  height: 32px;
+  background-image: url('/aircrafts/plane.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  cursor: pointer;
+}
+.plane-slider::-moz-range-thumb {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background-image: url('/aircrafts/plane.svg');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  cursor: pointer;
+}
