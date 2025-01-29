@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
-import { FlightData, PathFeature } from '../types';
+import { FlightData, PathFeature, Pilot } from '../types';
 import PlaneSlider from './PlaneSlider';
 import * as turf from '@turf/turf';
 import ElevationChart from './ElevationChart';
+import { useDispatch } from 'react-redux';
+import { setPilot } from '../store/reducers/chatpilot';
 
 interface InfoCardProps {
   data: FlightData | null;
@@ -16,7 +18,7 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
   const [pathIndex, setPathIndex] = useState<number>(0);
   const [currentAltitude, setCurrentAltitude] = useState<number>(0);
   const [distanceTraveled, setDistanceTraveled] = useState<number>(0);
-
+  const dispatch = useDispatch();
   const start_airport = data?.start_airport?.name?.split(' ').map(word => word.charAt(0).toUpperCase()).join('');
   const finish_airport = data?.finish_airport?.name?.split(' ').map(word => word.charAt(0).toUpperCase()).join('');
 
@@ -89,6 +91,11 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
     onClose();
   };
 
+  const setPilotChatPanel = (pilot:Pilot)=>{
+    dispatch(setPilot(pilot));
+    document.dispatchEvent(new Event('pilot_clicked'));
+  }
+
   if (!data) return null;
 
   return (
@@ -153,16 +160,16 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
         <div className='flex flex-row justify-between gap-2'>
           <div onClick={()=>events('start_airport_clicked', data.start_airport)} className='text-slate-300 select-none hover:bg-slate-800 bg-slate-800 bg-opacity-50 p-2 rounded-md w-[50%] text-center flex flex-col items-center'>
           <div className='text-amber-400 mb-1' style={{fontSize: '10px'}}>AZIMUTH</div>
-            <div className='text-amber-400 text-md'>{data.bearing.toFixed(2)} °</div>
+            <div className='text-amber-400 text-xl'>{data.bearing.toFixed(2)} °</div>
           </div>
           <div onClick={()=>events('finish_airport_clicked', data.finish_airport)} className='text-slate-300 select-none hover:bg-slate-800 bg-slate-800 bg-opacity-50 p-2 rounded-md w-[50%] text-center flex flex-col items-center'>
-          <div className='text-red-400 text-slate-400 mb-1' style={{fontSize: '10px'}}>PILOT</div>
-            <div className='text-red-400 text-md'>{data.pilot.name}</div>
+          <div className='text-red-400 mb-1' style={{fontSize: '10px'}}>PILOT</div>
+            <div className='text-red-400 text-xl'>{data.pilot.name}</div>
           </div>
         </div>
 
         <div className='flex flex-row justify-between gap-2'>
-          <button className="bg-green-600 w-full hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md mt-2">
+          <button onClick={()=>setPilotChatPanel(data.pilot)} className="bg-green-600 w-full hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md mt-2">
             Contact Pilot
           </button>
         </div>

@@ -5,11 +5,13 @@ import { createEncryptor } from '../utils/encryptor';
 
 // reducers
 import userReducer from './reducers/user';
-import loaderReducer from './reducers/loader';
+import loaderReducer from './reducers/loader';  
+import chatPilotReducer from './reducers/chatpilot';
 // rootReducer'ı combineReducers ile birleştiriyoruz
 const rootReducer:any = combineReducers({
   user: userReducer,
-  loader: loaderReducer
+  loader: loaderReducer,
+  chatpilot: chatPilotReducer
 });
 
 const persistConfig = {

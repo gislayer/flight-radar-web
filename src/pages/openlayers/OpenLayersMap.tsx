@@ -20,6 +20,7 @@ import { XYZ } from 'ol/source';
 import InfoCard from '../../components/InfoCard';
 import * as turf from '@turf/turf';
 import { Feature } from 'ol';
+import ChatPanel from '../../components/ChatPanel';
 const VITE_API_URL = import.meta.env.VITE_API_URL;
 
 const OpenLayersMap = () => {
@@ -632,6 +633,7 @@ const OpenLayersMap = () => {
       }} data={v} onClose={onSidebarClose} onChange={(p:PathFeature)=>{
         setAircraftPosition(p);
       }}/> }
+      
       <div 
         ref={mapRef} 
         style={{ 
@@ -642,6 +644,7 @@ const OpenLayersMap = () => {
           left: 0 
         }}
       />
+      <div className='z-10000'><ChatPanel /></div>
     </div>
   );
 };
