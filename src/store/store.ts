@@ -5,10 +5,11 @@ import { createEncryptor } from '../utils/encryptor';
 
 // reducers
 import userReducer from './reducers/user';
-
+import loaderReducer from './reducers/loader';
 // rootReducer'ı combineReducers ile birleştiriyoruz
 const rootReducer:any = combineReducers({
   user: userReducer,
+  loader: loaderReducer
 });
 
 const persistConfig = {

@@ -6,17 +6,13 @@ import { ApexOptions } from 'apexcharts';
 interface ElevationChartProps {
   path: Path;
   currentIndex?: number;
-  onHover?: (index: number) => void;
+  onClick?: (index: number) => void;
 }
 
-const ElevationChart = ({ path, currentIndex, onHover }: ElevationChartProps) => {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+const ElevationChart = ({ path, currentIndex, onClick }: ElevationChartProps) => {
   const [chartOptions, setChartOptions] = useState<ApexOptions | null>(null);
-
   if (!path?.features?.length) return null;
-
   const altitudeData = path.features.map(feature => feature.properties.altitude);
-
   useEffect(() => {
     const options: ApexOptions = {
       chart: {
@@ -37,6 +33,14 @@ const ElevationChart = ({ path, currentIndex, onHover }: ElevationChartProps) =>
           enabled: true,
           type: 'x',
           autoScaleYaxis: true
+        },
+        events:{
+          click: (event, chartContext, config) => {
+            if (onClick && typeof config.dataPointIndex === 'number') {
+              
+              onClick(config.dataPointIndex);
+            }
+          }
         }
       },
       dataLabels: {
@@ -114,7 +118,7 @@ const ElevationChart = ({ path, currentIndex, onHover }: ElevationChartProps) =>
     };
 
     setChartOptions(options);
-  }, [path, currentIndex, hoveredIndex]);
+  }, [path, currentIndex]);
 
   const series = [{
     name: '- Altitude',

@@ -6,21 +6,20 @@ import VectorTileLayer from 'ol/layer/VectorTile';
 import VectorTileSource from 'ol/source/VectorTile';
 import VectorSource from 'ol/source/Vector';
 import LineString from 'ol/geom/LineString';
-import Stroke from 'ol/style/Stroke';
+import {Stroke, Style, Icon, Fill, Circle} from 'ol/style';
 import GeoJSON from 'ol/format/GeoJSON';
 import MVT from 'ol/format/MVT';
-import OSM from 'ol/source/OSM';
-import Style from 'ol/style/Style';
-import Icon from 'ol/style/Icon';
 import 'ol/ol.css';
 import API from '../../utils/API';
 import {bbox} from '@turf/turf';
-import { CurrentFlightData, FlightData, Path, PathFeature } from '../../types';
+import { Airport, CurrentFlightData, FlightData, Path, PathFeature } from '../../types';
 import VectorLayer from 'ol/layer/Vector';
-import { transformExtent } from 'ol/proj';
+import { transform, transformExtent } from 'ol/proj';
 import { Zoom } from 'ol/control';
 import { XYZ } from 'ol/source';
 import InfoCard from '../../components/InfoCard';
+import * as turf from '@turf/turf';
+import { Feature } from 'ol';
 const VITE_API_URL = import.meta.env.VITE_API_URL;
 
 const OpenLayersMap = () => {
@@ -30,20 +29,36 @@ const OpenLayersMap = () => {
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const vectorTileLayerRef = useRef<VectorTileLayer | null>(null);
   const pathLayerRef = useRef<VectorLayer | null>(null);
+  const livePathLayerRef = useRef<VectorLayer | null>(null);
   const animationFrameRef = useRef<number>();
   const lastUpdateTimeRef = useRef<number>(Date.now());
-  const currentPositionsRef = useRef<{[key: string]: {x: number, y: number, bearing: number}}>({});
-  const targetPositionsRef = useRef<{[key: string]: {x: number, y: number, bearing: number}}>({});
   const currentAircraftRef = useRef<VectorLayer | null>(null);
-  const [aircraftData,setAircraftData] = useState<FlightData | null>(null);
+  const sliderAircraftRef = useRef<VectorLayer | null>(null);
+  const markerLayerRef = useRef<VectorLayer | null>(null);
+  const liveLayerRef = useRef<VectorLayer | null>(null);
+  const liveStatus = useRef<boolean>(false);
+  const [currentZoom,setCurrentZoom] = useState<number>(0);
+  const sideBarStatus = useRef<boolean | null>(false);
+  const aircraftDataRef = useRef<FlightData | null>(null);
+  const [aircraftDataStatus,setAircraftDataStatus] = useState<boolean | null>(false);
+  const [v,setData] = useState<FlightData | null>(null);
   const highlightAircraftRef = useRef<VectorLayer | null>(null);
   var api = new API({newurl:VITE_API_URL});
 
 
-  const getAircraftData = async (properties:CurrentFlightData, coordinate:number[])=>{
+  const getAircraftData = async (properties:any, zoom:boolean=true)=>{
+    debugger;
     const data = await api.get(`routes/${properties['id']}`) as FlightData;
-    setAircraftData(data);
-    setPathLayer(data.path);
+    aircraftDataRef.current = data;
+    setAircraftDataStatus(true);
+    sideBarStatus.current = true;
+    data.path.features.unshift({
+      type:'Feature',
+      properties:{altitude:0,bearing:0,date:'',id:0,speed:0,type:data.aircraft.aircraftTypeId},
+      geometry:data.start_airport.geometry
+    });
+    setPathLayer(data.path, zoom);
+    setData(data);
   }
 
   const gettimestampFromZoom = (zoom:number=0)=>{
@@ -54,8 +69,7 @@ const OpenLayersMap = () => {
     return Date.now();
   }
 
-  const setPathLayer = (path:Path )=>{
-    debugger;
+  const setPathLayer = (path:Path, zoom:boolean=true)=>{
     
     if(pathLayerRef.current){
       var pathGeoJSON:any = {
@@ -77,9 +91,11 @@ const OpenLayersMap = () => {
       }
       var source = pathLayerRef.current.getSource() as VectorSource;
       source.clear();
-      var geomBbox = bbox(pathGeoJSON);
-      var geomBbox3857 = transformExtent(geomBbox, 'EPSG:4326', 'EPSG:3857');
-      flyToBBox(geomBbox3857);
+      if(zoom){
+        var geomBbox = bbox(pathGeoJSON);
+        var geomBbox3857 = transformExtent(geomBbox, 'EPSG:4326', 'EPSG:3857');
+        flyToBBox(geomBbox3857);
+      }
       var features = new GeoJSON().readFeatures(pathGeoJSON, { 
         featureProjection: 'EPSG:3857'
       });
@@ -89,48 +105,56 @@ const OpenLayersMap = () => {
 
   const flyToBBox = (bbox:number[])=>{
     if(mapInstanceRef.current){
-      mapInstanceRef.current.getView().fit(bbox, {duration: 500, padding:[100,100,100,400]});
+      mapInstanceRef.current.getView().fit(bbox, {duration: 500, padding:[100,100,100,400], maxZoom:15});
     }
   }
 
-  const animate = (timestamp: number) => {
-    const progress = (timestamp - lastUpdateTimeRef.current) / 2000; // 2 saniye içinde tamamlanacak
-    
-    if (progress < 1) {
-      Object.keys(currentPositionsRef.current).forEach(id => {
-        const current = currentPositionsRef.current[id];
-        const target = targetPositionsRef.current[id];
-        if (current && target) {
-          current.x += (target.x - current.x) * 0.1;
-          current.y += (target.y - current.y) * 0.1;
-          current.bearing += (target.bearing - current.bearing) * 0.1;
-        }
-      });
-      
-      if (vectorTileLayerRef.current) {
-        vectorTileLayerRef.current.changed();
-      }
-      
-      animationFrameRef.current = requestAnimationFrame(animate);
-    }
-  };
+  const getEmptyVectorSource = ()=>{
+    return new VectorSource({
+      features: new GeoJSON().readFeatures({type:'FeatureCollection', features:[]}, {
+        featureProjection: 'EPSG:3857'
+      })
+    });
+  }
 
   const addCurrentAircraft = ()=>{
     if(currentAircraftRef.current){
       return currentAircraftRef.current;
     }
     currentAircraftRef.current = new VectorLayer({
-      source: new VectorSource({
-        features: new GeoJSON().readFeatures({type:'FeatureCollection', features:[]}, {
-          featureProjection: 'EPSG:3857'
-        })
-      }),
+      source: getEmptyVectorSource(),
       style: (feature:any)=>{
-        debugger;
-        return getAircraftStyle(feature.getProperties() as CurrentFlightData,true);
+        return getAircraftStyle(feature.getProperties() as CurrentFlightData,'normal');
       }
     });
     return currentAircraftRef.current;
+  } 
+
+  const addMarkerLayer = ()=>{
+    if(markerLayerRef.current){
+      return markerLayerRef.current;
+    }
+    markerLayerRef.current = new VectorLayer({
+      source: getEmptyVectorSource(),
+      style: (feature:any)=>{
+        var props:any = feature.getProperties();
+        return getIconStyle(props['icon'], props['size'], props['color']);
+      }
+    });
+    return markerLayerRef.current;
+  }
+
+  const addSliderAircraft = ()=>{
+    if(sliderAircraftRef.current){
+      return sliderAircraftRef.current;
+    }
+    sliderAircraftRef.current = new VectorLayer({
+      source: getEmptyVectorSource(),
+      style: (feature:any)=>{
+        return getAircraftStyle(feature.getProperties() as CurrentFlightData,'slider');
+      }
+    });
+    return sliderAircraftRef.current;
   }
 
   const addHighlightAircraft = ()=>{
@@ -138,87 +162,252 @@ const OpenLayersMap = () => {
       return highlightAircraftRef.current;
     }
     highlightAircraftRef.current = new VectorLayer({
-      source: new VectorSource({
-        features: new GeoJSON().readFeatures({type:'FeatureCollection', features:[]}, {
-          featureProjection: 'EPSG:3857'
-        })
-      }),
+      source: getEmptyVectorSource(),
       style: (feature:any)=>{
-        return getAircraftStyle(feature.getProperties() as CurrentFlightData,true);
+        return getAircraftStyle(feature.getProperties() as CurrentFlightData,'hover');
       }
     });
     return highlightAircraftRef.current;
+  }
+
+  const updateLiveData = async () => {
+    if(!mapInstanceRef.current) return;
+    var zoom = mapInstanceRef.current.getView().getZoom();
+    if(!zoom){ return;}
+    if(zoom < 10) return;
+
+    const extent = mapInstanceRef.current.getView().calculateExtent();
+    const bbox = transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
+
+    try {
+      const geojsonData = await api.post('routes/jobs/live',{bbox:bbox});
+      if(!geojsonData) return;
+      const source = liveLayerRef.current?.getSource();
+      if(!source) return;
+
+      source.clear();
+
+      const features:any[] = new GeoJSON({
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:3857'
+      }).readFeatures(geojsonData);
+
+      features.forEach(feature => {
+        const props = feature.getProperties();
+        const speed = props.speed;
+        const bearing = props.bearing;
+        
+        if(speed && bearing){
+          const startCoord = feature.getGeometry().getCoordinates();
+          var startCoord4326 = transform(startCoord, 'EPSG:3857', 'EPSG:4326');
+          let lastTime = Date.now();
+          var i=0;
+          
+          const animate = () => {
+            const now = Date.now();
+            const deltaTime = now - lastTime;
+            const distance = (speed/(4.14)) * (deltaTime/1000);
+            var newCoord = turf.destination(turf.point(startCoord4326), distance, bearing, {units: 'meters'});
+            var newFeature:any = transform(newCoord.geometry.coordinates, 'EPSG:4326', 'EPSG:3857');     
+            feature.getGeometry().setCoordinates(newFeature);
+            animationFrameRef.current = requestAnimationFrame(animate);
+            //xxx
+            if(sideBarStatus.current && i%10==0){
+              updatePathLayer();
+            }
+            i++;
+          };
+          
+          animate();
+        }
+      });
+
+      source.addFeatures(features);
+      if(sideBarStatus.current){
+        await getAircraftData({id:Number(features[0].getProperties().id)},false);
+      }
+
+    } catch(err) {
+      console.error('Canlı veri güncellenirken hata:', err);
+    }
+  };
+
+  const addLiveLayer = () => {
+    if(liveLayerRef.current){
+      return liveLayerRef.current;
+    }
+    liveLayerRef.current = new VectorLayer({
+      source: getEmptyVectorSource(),
+      minZoom: 10,
+      style: (feature:any)=>{
+        return getAircraftStyle(feature.getProperties() as CurrentFlightData,'normal');
+      }
+    });
+    // Her 10 saniyede bir güncelle
+    setInterval(updateLiveData, 10000);
+    updateLiveData();
+
+    return liveLayerRef.current;
+  }
+
+  const updatePathLayer = ()=>{
+    if(livePathLayerRef.current && aircraftDataRef.current){
+      var planesLayer = liveLayerRef.current?.getSource() as VectorSource;
+      var planes = planesLayer.getFeatures();
+      if(planes.length>0){
+        var source = livePathLayerRef.current.getSource() as VectorSource;
+        var lastPoint = aircraftDataRef.current?.path.features[aircraftDataRef.current?.path.features.length-1];
+        var lastPoint3857 = transform(lastPoint.geometry.coordinates, 'EPSG:4326', 'EPSG:3857');
+        var activeRoute = aircraftDataRef.current?.id;
+        source.clear();
+        planes.forEach((plane:any) => {
+          var planeProps = plane.getProperties();
+          if(planeProps.id == activeRoute){
+            var nowPoint = plane.getGeometry().getCoordinates();
+            var line = new LineString([lastPoint3857,nowPoint]);
+            var feature = new Feature({geometry:line,altitude:planeProps.altitude});
+            source.addFeature(feature);
+          }
+        });
+      }
+    }
+  }
+
+  const getPathLayerStyle = (feature:any)=>{
+    const geometry = feature.getGeometry();
+    const styles = [];
+
+    if (geometry) {
+      const coordinates = geometry.getCoordinates();
+      
+      for (let i = 0; i < coordinates.length - 1; i++) {
+        const altitude = feature.get('altitude');
+        let color = '#8B008B';
+        if(altitude<=2000){
+          color = '#FFFFFF';
+        }else if(altitude<=4000){
+          color = '#FFFF00';
+        }else if(altitude<=6000){
+          color = '#FFD700';
+        }else if(altitude<=8000){
+          color = '#FFA500';
+        }else if(altitude<=10000){
+          color = '#FF0000';
+        }else{
+          color = '#8B008B';
+        }
+
+        styles.push(new Style({
+          stroke: new Stroke({
+            color: color,
+            width: 3
+          }),
+          geometry: new LineString([coordinates[i], coordinates[i + 1]])
+        }));
+      }
+    }
+    
+    return styles;
+  }
+
+  const addLivePathLayer = ()=>{
+    if(livePathLayerRef.current){
+      return livePathLayerRef.current;
+    }
+    livePathLayerRef.current = new VectorLayer({
+      source: getEmptyVectorSource(),
+      style: (feature: any) => {
+        return getPathLayerStyle(feature);
+      }
+    });
+    return livePathLayerRef.current;
   }
 
   const addPathLayer = () => {
     if (pathLayerRef.current) {
       return pathLayerRef.current;
     }
-
     pathLayerRef.current = new VectorLayer({
-      source: new VectorSource({
-        features: new GeoJSON().readFeatures({type:'FeatureCollection', features:[]}, {
-          featureProjection: 'EPSG:3857'
-        })
-      }),
+      source: getEmptyVectorSource(),
       style: (feature: any) => {
-        debugger;
-        const geometry = feature.getGeometry();
-        const styles = [];
-
-        if (geometry) {
-          const coordinates = geometry.getCoordinates();
-          
-          for (let i = 0; i < coordinates.length - 1; i++) {
-            const altitude = feature.get('altitude');
-            let color = '#8B008B';
-            if(altitude<=2000){
-              color = '#FFFFFF';
-            }else if(altitude<=4000){
-              color = '#FFFF00';
-            }else if(altitude<=6000){
-              color = '#FFD700';
-            }else if(altitude<=8000){
-              color = '#FFA500';
-            }else if(altitude<=10000){
-              color = '#FF0000';
-            }else{
-              color = '#8B008B';
-            }
-
-            styles.push(new Style({
-              stroke: new Stroke({
-                color: color,
-                width: 3
-              }),
-              geometry: new LineString([coordinates[i], coordinates[i + 1]])
-            }));
-          }
-        }
-        
-        return styles;
+        return getPathLayerStyle(feature);
       }
     });
 
     return pathLayerRef.current;
   }
 
-  const getAircraftStyle = (props:CurrentFlightData,highlight:boolean=false)=>{
+  const addStationMarker = (geometry:any, iconPath: string, size:number=22, color:string='rgb(0,0,0)') => {
+    var geojson:any = {type:'Feature',properties:{icon:iconPath,size,color},geometry:geometry};
+    var source = markerLayerRef.current?.getSource();
+    var feature = new GeoJSON().readFeature(geojson, {
+      dataProjection: 'EPSG:4326',
+      featureProjection: 'EPSG:3857'
+    });
+    source?.clear();
+    source?.addFeature(feature);
+  }
+
+  const getIconStyle = (path:string, size:number=22, color:string='rgb(0,0,0)')=>{
     return [
+      
       new Style({
-        image: new Icon({
-          src: `/icons/typeg-${props.type}.png`,
-          height: highlight?25:22,
-          rotation: (props?.bearing || props.bearing) * Math.PI/180, 
-          opacity: 1,
-          //color: 'rgba(0, 0, 0, 0.5)',
-          displacement: [-5, 5]
+        image: new Circle({
+          radius: (size/2)+8,
+          fill: new Fill({
+            color: color
+          }),
+          stroke: new Stroke({
+            color: '#333',
+            width: 2
+          })
         })
       }),
       new Style({
         image: new Icon({
-          src: `/icons/types${highlight ? 'h' : ''}-${props.type}.png`,
-          height: highlight?25:20,
+          src: path,
+          height: size,
+          color: '#fff'
+        })
+      }),
+    ]
+  }
+
+  const getAircraftStyle = (props:CurrentFlightData,type:'normal' | 'hover' | 'select' | 'slider')=>{
+    var color  = 'rgb(255, 193, 7)';
+    var size = 22;
+    switch(type){
+      case 'hover':{
+        color = 'rgb(118, 220, 0)';
+        break;
+      }
+      case 'select':{
+        color = 'rgb(0, 188, 212)';
+        size=28
+        break;
+      }
+      case 'slider':{
+        color = 'rgb(0, 188, 212)';
+        size=28
+        break;
+      }
+    }
+    return [
+      new Style({
+        image: new Icon({
+          src: `/icons/plane${props.type}.png`,
+          height: size,
+          rotation: (props?.bearing || props.bearing) * Math.PI/180, 
+          opacity: 0.7,
+          color: 'rgb(0, 0, 0)',
+          displacement: [4,4]
+        })
+      }),
+      new Style({
+        image: new Icon({
+          src: `/icons/plane${props.type}.png`,
+          height: size,
+          color: color,
           rotation: (props?.bearing || props.bearing) * Math.PI/180,
         })
       })
@@ -239,7 +428,7 @@ const OpenLayersMap = () => {
       maxZoom: 10,
       style: (feature) => {
         var props = feature.getProperties() as CurrentFlightData;
-        return getAircraftStyle(props);
+        return getAircraftStyle(props,'normal');
         
       }
     });
@@ -253,7 +442,7 @@ const OpenLayersMap = () => {
   }
 
   const setAircraftPosition = (p:PathFeature)=>{
-    const source = currentAircraftRef.current?.getSource();
+    const source = sliderAircraftRef.current?.getSource();
     if(source){
       source.clear();
       var feature = new GeoJSON({dataProjection:'EPSG:4326', featureProjection:'EPSG:3857'}).readFeature(p);
@@ -277,7 +466,7 @@ const OpenLayersMap = () => {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };*/
-  },[intervalTime])
+  },[intervalTime,currentZoom])
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -287,17 +476,24 @@ const OpenLayersMap = () => {
     });
     var layer = addVectorTileLayer();
     var path = addPathLayer();
+    var livePath = addLivePathLayer();
     var highlightAircraft = addHighlightAircraft();
     var currentAircraft = addCurrentAircraft();
-
+    var sliderAircraft = addSliderAircraft();
+    var marker = addMarkerLayer();
+    var live = addLiveLayer();
     const map = new Map({
       target: mapRef.current,
       layers: [
         basemap,
         path,
+        livePath,
         layer,
+        live,
         highlightAircraft,
-        currentAircraft
+        currentAircraft,
+        sliderAircraft,
+        marker
       ],
       view: new View({
         center: [0, 0],
@@ -329,30 +525,47 @@ const OpenLayersMap = () => {
 
     map.on('click',(e:any)=>{
       const features = map.getFeaturesAtPixel(e.pixel, {
-        layerFilter: (layer) => layer === vectorTileLayerRef.current
+        layerFilter: (layer) => layer === vectorTileLayerRef.current || layer === liveLayerRef.current
       });
       if (features && features.length > 0) {
         const feature = features[0];
         const properties = feature.getProperties() as CurrentFlightData;
-        const coordinate = e.coordinate;
-        getAircraftData(properties,coordinate);
+        getAircraftData(properties,true);
       }
     })
 
     map.on('pointermove',(e:any)=>{
       const features = map.getFeaturesAtPixel(e.pixel, {
-        layerFilter: (layer) => layer === vectorTileLayerRef.current
+        layerFilter: (layer) => layer === vectorTileLayerRef.current || layer === liveLayerRef.current
       });
-      if(features && features.length > 0){
-        debugger;
-        const feature = features[0];
-        const source = highlightAircraftRef.current?.getSource();
-        if(source){
+      const source = highlightAircraftRef.current?.getSource();
+      if(source){
+        if(features && features.length > 0){
+          const feature = features[0];
           source.clear();
           source.addFeature(feature);
+        } else {
+          source.clear(); // İmleç feature üzerinde değilse highlight'ı temizle
         }
       }
     })
+
+    map.on('moveend',(e:any)=>{
+      var zoom = map.getView().getZoom();
+      if(zoom !== undefined && zoom > 10){
+        if(liveStatus.current==false){
+          liveStatus.current = true;
+          updateLiveData();
+        }
+      }else{
+        if(liveStatus.current==true){
+          liveStatus.current = false;
+          //updateLiveData();
+        }
+        setCurrentZoom(Number(zoom));
+      }
+
+    });
 
     mapInstanceRef.current = map;
 
@@ -367,10 +580,56 @@ const OpenLayersMap = () => {
     };
   }, []);
 
+  const onSidebarClose = ()=>{
+    setAircraftDataStatus(false);
+    sideBarStatus.current = false;
+    const sourceh = highlightAircraftRef.current?.getSource();
+    if(sourceh){
+      sourceh.clear();
+    }
+    const sourcec = currentAircraftRef.current?.getSource();
+    if(sourcec){
+      sourcec.clear();
+    }
+    const sources = sliderAircraftRef.current?.getSource();
+    if(sources){
+      sources.clear();
+    }
+    const sourcep = pathLayerRef.current?.getSource();
+    if(sourcep){
+      sourcep.clear();
+    }
+    const sourcem = markerLayerRef.current?.getSource();
+    if(sourcem){
+      sourcem.clear();
+    }
+    var sourcelp = livePathLayerRef.current?.getSource() as VectorSource;
+    if(sourcelp){
+      sourcelp.clear();
+    }
+  }
+
+  const flyToLatLng = (coords:number[])=>{
+    var c = transform(coords,'EPSG:4326','EPSG:3857');
+    flyToBBox([c[0]-0.05,c[1]-0.05,c[0]+0.05,c[1]+0.05]);
+  }
+
   return (
     <div>
-      { aircraftData && <InfoCard data={aircraftData} onChange={(p:PathFeature)=>{
-        debugger;
+      { aircraftDataStatus && <InfoCard events={(type:string, data:any)=>{
+        switch(type){
+          case 'start_airport_clicked':
+            var subData = data as Airport;
+            flyToLatLng(subData.geometry.coordinates);
+            addStationMarker(subData.geometry, '/icons/marker_tower.png', 22, '#ff5722');
+            break;
+          case 'finish_airport_clicked':
+            var subData = data as Airport;
+            flyToLatLng(subData.geometry.coordinates);
+            addStationMarker(subData.geometry, '/icons/marker_tower.png', 22, '#4caf50');
+            break;
+        }
+      }} data={v} onClose={onSidebarClose} onChange={(p:PathFeature)=>{
         setAircraftPosition(p);
       }}/> }
       <div 

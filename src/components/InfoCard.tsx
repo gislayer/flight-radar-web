@@ -7,13 +7,18 @@ import ElevationChart from './ElevationChart';
 interface InfoCardProps {
   data: FlightData | null;
   onChange: (p: PathFeature) => void;
+  onClose: () => void;
+  events:(type:string, data:any)=>void;
 }
 
-const InfoCard = ({ data, onChange }: InfoCardProps) => {
+const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [pathIndex, setPathIndex] = useState<number>(0);
   const [currentAltitude, setCurrentAltitude] = useState<number>(0);
   const [distanceTraveled, setDistanceTraveled] = useState<number>(0);
+
+  const start_airport = data?.start_airport?.name?.split(' ').map(word => word.charAt(0).toUpperCase()).join('');
+  const finish_airport = data?.finish_airport?.name?.split(' ').map(word => word.charAt(0).toUpperCase()).join('');
 
   useEffect(() => {
     if (data?.path?.features?.length) {
@@ -81,23 +86,24 @@ const InfoCard = ({ data, onChange }: InfoCardProps) => {
 
   const handleClose = () => {
     setIsOpen(false);
+    onClose();
   };
 
   if (!data) return null;
 
   return (
-    <div className={`sidebar-container ${isOpen ? 'open' : ''}`}>
+    <div className={`sidebar-container bg-gray-700 bg-opacity-70 backdrop-blur-xl ${isOpen ? 'open' : ''}`}>
       <div className='flex flex-row justify-between items-center bg-gray-900'>
         <div className='text-md pl-3 text-green-500'>{data.aircraft.aircraftType.name} - {data.aircraft.name.split('').slice(0, 5).join('')}</div>
         <button className="py-2 px-4 text-white hover:text-amber-500 text-2xl rounded-md" onClick={handleClose}>×</button>
       </div>
 
       <div style={{ backgroundImage: `url(/sky/${randomImage})` }} className='bg-cover bg-center h-[200px] p-2 w-full flex justify-center items-center'>
-        <img style={{width: '80%'}} src={`/aircrafts/${data.aircraft.aircraftTypeId}.png`} alt={data.aircraft.aircraftType.name} />
+        <img style={{width: '80%'}} src={`/aircrafts/${data.aircraft.aircraftTypeId}.png`} alt={data.aircraft.aircraftType.name} className='filter drop-shadow-[0_0_10px_rgba(255,255,255,1)]' />
       </div>
-      <div className='flex bg-gray-700 p-1 flex-row justify-between items-center'>
-        <div className='p-1'><img style={{height:'30px'}} src={'/aircrafts/airport2.png'}/></div>
-        <div className='flex-1 border-b border-gray-500 mx-3 mr-2'>
+      <div className='flex p-1 flex-row justify-between items-center'>
+        <div className='p-1'><img style={{height:'30px'}} src={'/icons/airport-tower.svg'}/></div>
+        <div className='flex-1  mx-3 mr-2'>
           <PlaneSlider value={pathIndex} min={0} max={data.path.features?.length-1} step={1} onChange={(value) => setPathIndex(value)} />
         </div>
         <div style={{width:'100px'}} className='flex gap-1 items-center'>
@@ -108,45 +114,65 @@ const InfoCard = ({ data, onChange }: InfoCardProps) => {
         </div>
         
       </div>
-      <div className='w-full h-[200px] flex items-center justify-center bg-gray-600'>
-        <ElevationChart path={data.path} currentIndex={pathIndex} onHover={(index) => setPathIndex(index)} />
+      <div className='w-full h-[200px] flex items-center justify-center'>
+        <ElevationChart path={data.path} currentIndex={pathIndex} onClick={(index) => setPathIndex(index)} />
       </div>
 
-      <div className='flex flex-row justify-between items-center bg-gray-700 p-2'>
+      <div className='flex flex-row justify-between items-center p-2'>
         <div className='text-xs text-white ml-1'>Distance: {distanceTraveled.toFixed(2)} km</div>
         <div className='text-xs text-white ml-1'>Altitude: {currentAltitude.toFixed(0)} m</div>
       </div>
 
-      
-      <div className="info-content">
-        <div className="info-row">
-          <h3>Uçuş Bilgileri</h3>
-          <p>ID: {data.id}</p>
-          <p>Son Güncelleme: {new Date(data.last_update_date).toLocaleString('tr-TR')}</p>
-          <p>Durum: {data.status ? 'Aktif' : 'Pasif'}</p>
-          <p>Hız: {data.speed} knot</p>
-          <p>İrtifa: {data.altitude} ft</p>
-          <p>Yön: {data.bearing}°</p>
+      <div className='flex flex-col p-4 gap-2'>
+
+        <div className='flex flex-row justify-between gap-2'>
+          <div onClick={()=>events('start_airport_clicked', data.start_airport)} className='text-slate-300 select-none cursor-pointer hover:bg-slate-800 bg-slate-800 bg-opacity-50 p-2 rounded-md w-[50%] text-center flex flex-col items-center'>
+          <div className='text-slate-400 mb-1' style={{fontSize: '10px'}}>DEPARTURE AIRPORT</div>
+            <div className='text-3xl'>{start_airport}</div>
+            
+            <div className='text-slate-500 truncate' style={{fontSize: '9px'}}>{data.start_airport.name.slice(0,data.start_airport.name.length>25?25:data.start_airport.name.length)}</div>
+          </div>
+          <div onClick={()=>events('finish_airport_clicked', data.finish_airport)} className='text-slate-300 select-none cursor-pointer hover:bg-slate-800 bg-slate-800 bg-opacity-50 p-2 rounded-md w-[50%] text-center flex flex-col items-center'>
+          <div className='text-slate-400 mb-1' style={{fontSize: '10px'}}>ARRIVAL AIRPORT</div>
+            <div className='text-3xl'>{finish_airport}</div>
+            
+            <div className='text-slate-500 w-fit truncate' style={{fontSize: '9px'}}>{data.finish_airport.name.slice(0,data.finish_airport.name.length>25?25:data.finish_airport.name.length)}</div>
+          </div>
         </div>
 
-        <div className="info-row">
-          <h3>Havaalanı Bilgileri</h3>
-          <p>Kalkış: {data.start_airport.name}</p>
-          <p>Varış: {data.finish_airport.name}</p>
+        <div className='flex flex-row justify-between gap-2'>
+          <div onClick={()=>events('start_airport_clicked', data.start_airport)} className='text-slate-300 select-none hover:bg-slate-800 bg-slate-800 bg-opacity-50 p-2 rounded-md w-[50%] text-center flex flex-col items-center'>
+          <div className='text-cyan-500 mb-1' style={{fontSize: '10px'}}>ALTITUDE</div>
+            <div className='text-cyan-500 text-xl'>{data.altitude.toFixed(2)} m</div>
+          </div>
+          <div onClick={()=>events('finish_airport_clicked', data.finish_airport)} className='text-slate-300 select-none hover:bg-slate-800 bg-slate-800 bg-opacity-50 p-2 rounded-md w-[50%] text-center flex flex-col items-center'>
+          <div className='text-green-600 mb-1' style={{fontSize: '10px'}}>SPEED</div>
+            <div className='text-green-600 text-xl'>{data.speed.toFixed(2)} km/h</div>
+          </div>
+        </div>
+        <div className='flex flex-row justify-between gap-2'>
+          <div onClick={()=>events('start_airport_clicked', data.start_airport)} className='text-slate-300 select-none hover:bg-slate-800 bg-slate-800 bg-opacity-50 p-2 rounded-md w-[50%] text-center flex flex-col items-center'>
+          <div className='text-amber-400 mb-1' style={{fontSize: '10px'}}>AZIMUTH</div>
+            <div className='text-amber-400 text-md'>{data.bearing.toFixed(2)} °</div>
+          </div>
+          <div onClick={()=>events('finish_airport_clicked', data.finish_airport)} className='text-slate-300 select-none hover:bg-slate-800 bg-slate-800 bg-opacity-50 p-2 rounded-md w-[50%] text-center flex flex-col items-center'>
+          <div className='text-red-400 text-slate-400 mb-1' style={{fontSize: '10px'}}>PILOT</div>
+            <div className='text-red-400 text-md'>{data.pilot.name}</div>
+          </div>
         </div>
 
-        <div className="info-row">
-          <h3>Pilot Bilgisi</h3>
-          <p>{data.pilot.name}</p>
+        <div className='flex flex-row justify-between gap-2'>
+          <button className="bg-green-600 w-full hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md mt-2">
+            Contact Pilot
+          </button>
         </div>
 
-        <div className="info-row">
-          <h3>Uçak Bilgileri</h3>
-          <p>Uçak: {data.aircraft.name}</p>
-          <p>Tip: {data.aircraft.aircraftType.name}</p>
-        </div>
       </div>
       
+      <div>
+        
+      </div>
+
     </div>
   );
 };

@@ -5,15 +5,11 @@ import { PersistGate } from 'redux-persist/integration/react';
 import store,{persistor} from './store/store';
 import './locales/i18n'
 import './index.css';
-//import 'antd/dist/reset.css';
 
 import NotFound from './pages/NotFound';
 import { useTranslation } from 'react-i18next';
-import App from './App';
 import OpenLayersMap from './pages/openlayers/OpenLayersMap';
-
-
-
+import Loader from './components/Loader';
 
 function Main() {
   const { t } = useTranslation();
@@ -30,6 +26,7 @@ function Main() {
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
     <Provider store={store}>
+      <Loader />
       <PersistGate loading={null} persistor={persistor}>
         <Main />
       </PersistGate>
