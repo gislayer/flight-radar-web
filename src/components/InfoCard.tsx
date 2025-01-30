@@ -101,7 +101,7 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
   return (
     <div className={`sidebar-container bg-gray-700 bg-opacity-70 backdrop-blur-xl ${isOpen ? 'open' : ''}`}>
       <div className='flex flex-row justify-between items-center bg-gray-900'>
-        <div className='text-md pl-3 text-green-500'>{data.aircraft.aircraftType.name} - {data.aircraft.name.split('').slice(0, 5).join('')}</div>
+        <div className='text-md pl-3 text-green-500'>{data.aircraft.aircraftType.name} - {data.id}</div>
         <button className="py-2 px-4 text-white hover:text-amber-500 text-2xl rounded-md" onClick={handleClose}>×</button>
       </div>
 
