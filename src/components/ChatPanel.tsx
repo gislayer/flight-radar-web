@@ -3,6 +3,7 @@ import { RootState } from '../store/store';
 import { clearPilot } from '../store/reducers/chatpilot';
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { SendMessage } from '../types';
 
 interface ChatMessage {
     pilotId: number;
@@ -14,7 +15,7 @@ const ChatPanel = () => {
   const [selectedPilot, setSelectedPilot] = useState<number | null>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(true);
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<SendMessage[]>([]);
   const [message, setMessage] = useState('');
   const socketRef = useRef<Socket | null>(null);
   const dispatch = useDispatch();
@@ -35,41 +36,63 @@ const ChatPanel = () => {
     });
 
     socket.on('left', (data:any) => {
-      debugger;
-      var roomId = data.roomId;
-      var admin = data.admin;
-      var obj = {
-        pilotId: roomId,
-        content: `${admin.name} left the chat`,
-        timestamp: Date.now()
+      var route_id:number = data.route_id;
+      var user = data.user;
+      var obj:SendMessage = {
+        user_id:user.id,
+        route_id:route_id,
+        sender:'Ali Kilic',
+        message:{
+          type:'text',
+          text:{
+            type:'text',
+            data:user.name + ' left the chat'
+          },
+          timestamp:Date.now()
+        }
       };
       setMessages(prev => [...prev, obj]);
     });
 
     socket.on('joined', (data:any) => {
       debugger;
-      var obj = {
-        pilotId: data.pilotId,
-        content: `${data.admin.name} joined the chat`,
-        timestamp: Date.now()
+      var route_id:number = data.route_id;
+      var user:any = data.user;
+      var route_users:number[] = data.route_users;
+      var obj:SendMessage = {
+        user_id:user.id,
+        route_id:route_id,
+        sender:'Ali Kilic',
+        message:{
+          type:'text',
+          text:{
+            type:'text',
+            data:user.name + ' joined the chat, There are ' + route_users.length + ' users in the chat'
+          },
+          timestamp:Date.now()
+        }
       };
       setMessages(prev => [...prev, obj]);
     });
 
-    socket.on('message', (message: ChatMessage) => {
+    socket.on('message', (message: SendMessage) => {
       setMessages(prev => [...prev, message]);
+      var chatbox = document.getElementById('chatbox');
+      if(chatbox){
+        chatbox.scrollTop = chatbox.scrollHeight;
+      }
     });
 
     socket.on('connect_error', (error) => {
-      console.error('Bağlantı hatası:', error);
+      console.error('connect_error:', error);
     });
     
     socket.on('connect_timeout', () => {
-      console.error('Bağlantı zaman aşımı');
+      console.error('connect_timeout');
     });
     
     socket.on('error', (error) => {
-      console.error('Soket hatası:', error);
+      console.error('Soket error:', error);
     });
 
     return () => {
@@ -90,15 +113,18 @@ const ChatPanel = () => {
     if (socketRef.current) {
       if (selectedPilot) {
         socketRef.current.emit('join', {
-          pilotId: selectedPilot,
+          route_id: selectedPilot,
           socketId: socketRef.current.id,
-          adminId: 1,
-          adminName: 'Ali Kilic',
-          name: pilots[selectedPilot]?.name
+          id: 1,
+          name: 'Ali Kilic',
         });
       } else {
         if(selectedPilot){
-          socketRef.current.emit('leave',{socketId:socketRef.current.id,pilotId:selectedPilot,adminId:1});
+          socketRef.current.emit('leave',{
+            socketId:socketRef.current.id,
+            route_id:selectedPilot,
+            user_id:1}
+          );
         }
       }
     }
@@ -128,21 +154,31 @@ const ChatPanel = () => {
       setSelectedPilot(null);
     }
     if(socketRef.current){
-      socketRef.current.emit('leave',{socketId:socketRef.current.id,pilotId:pilotId,adminId:1});
+      socketRef.current.emit('leave',{
+        socketId:socketRef.current.id,
+        route_id:pilotId,
+        user_id:1
+      }); 
     }
     dispatch(clearPilot(pilotId));
   };
 
   const handleSendMessage = () => {
-    debugger;
     if (socketRef.current && message.trim() && selectedPilot) {
-      const newMessage: ChatMessage = {
-        pilotId: selectedPilot,
-        content: message,
-        timestamp: Date.now()
+      const newMessage: SendMessage = {
+        user_id:1,
+        route_id:selectedPilot,
+        sender:'Ali Kilic',
+        message:{
+          type:'text',
+          text:{
+            type:'text',
+            data:message
+          },
+          timestamp:Date.now()
+        }
       };
-      socketRef.current.emit('message', {adminId:1, message:newMessage});
-      //setMessages(prev => [...prev, newMessage]);
+      socketRef.current.emit('message', newMessage);
       setMessage('');
     }
   };
@@ -166,6 +202,55 @@ const ChatPanel = () => {
     );
   }
 
+  const handleSendCommand = () => {
+    debugger;
+    if (socketRef.current && selectedPilot) {
+      var newCommand:SendMessage = {
+        user_id:1,
+        route_id:selectedPilot,
+        sender:'Ali Kilic',
+        message:{
+          type:'command',
+          timestamp:Date.now(),
+          command:{
+            type:'command',
+            data:{
+              question:'Are you ready for the new mission?',
+              true_answer:'Yes',
+              false_answer:'No'
+            }
+          }
+        }
+      };
+      socketRef.current.emit('message', newCommand);
+    }
+  };
+
+  const handleSendLocation = () => {
+    debugger;
+    if (socketRef.current && selectedPilot) {
+      var newLocation:SendMessage = {
+        user_id:1,
+        route_id:selectedPilot,
+        sender:'Ali Kilic',
+        message:{
+          type:'location',
+          timestamp:Date.now(),
+          location:{
+            type:'location',
+            data:{
+              name:'Istanbul',
+              latitude:41.0082,
+              longitude:28.9784,
+              type:'airport'
+            }
+          }
+        }
+      };
+      socketRef.current.emit('message', newLocation);
+    }
+  };
+
   if (!isOpen || Object.keys(pilots).length === 0) return null;
 
   return (
@@ -186,33 +271,76 @@ const ChatPanel = () => {
             <div className="mb-2 text-sm text-gray-400">
               Chat with {pilots[selectedPilot]?.name}
             </div>
-            <div className="flex-1 overflow-y-auto bg-gray-700 rounded p-2 mb-2">
+            <div id={'chatbox'} className="flex-1 overflow-y-auto bg-gray-700 rounded p-2 mb-2">
             {messages.map((msg, index) => (
               <div 
+                
                 key={index} 
                 className={`mb-2 p-2 rounded ${
-                  msg.pilotId === selectedPilot 
-                    ? 'bg-amber-900 ml-auto' 
+                  msg.route_id === selectedPilot 
+                    ? 'bg-[#3e4a5e] ml-auto' 
                     : 'bg-gray-600'
                 }`}
               >
-                <div className="text-sm">{msg.content}</div>
-                <div className="text-xs text-gray-400">
-                  {new Date(msg.timestamp).toLocaleTimeString()}
-                </div>
+                {
+                  msg.message.type === 'text' && <div className="text-sm flex flex-col">
+                    <div className='text-blue-300 text-xs text-left mb-2 w-full flex flex-row justify-between items-center'>
+                      <span>{msg.sender}</span>
+                      <div className="text-xs text-gray-400">
+                        {new Date(msg.message.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                    <div className='text-sm'>{msg.message.text?.data.toString()}</div>
+                  </div>
+                }
+                {
+                  msg.message.type === 'command' && <div className="text-sm flex flex-col">
+                    <div className='text-blue-300 text-xs text-left mb-2 w-full flex flex-row justify-between items-center'>
+                      <span>{msg.sender}</span>
+                      <div className="text-xs text-gray-400">
+                        {new Date(msg.message.timestamp).toLocaleTimeString()}
+                      </div>
+                    </div>
+                    <div className='flex flex-col text-sm'>
+                      <div className='mb-1'><b className='text-green-500'>Command : </b> {msg.message.command?.data.question.toString()}</div>
+                      <div className='mb-1'><b className='text-amber-300'>Answers : </b> {msg.message.command?.data.true_answer.toString()} or {msg.message.command?.data.false_answer.toString()}</div>
+                    </div>
+                    </div>
+                }
+                {
+                  msg.message.type === 'location' && <div className="text-sm flex flex-col">
+                    <div className='text-blue-300 text-xs text-left mb-2 w-full flex flex-row justify-between items-center'>
+                      <span>{msg.sender}</span>
+                      <div className="text-xs text-gray-400">
+                        {new Date(msg.message.timestamp).toLocaleTimeString()}
+                      </div>
+                      </div>
+                      <div className='flex flex-col text-sm'>
+                        <div className='mb-1'><b className='text-red-400'>Location :</b> {msg.message.location?.data.name.toString()}</div>
+                        <div className='mb-1'><span className='text-amber-300 text-xs'>Latitude :</span> {msg.message.location?.data.latitude.toString()}</div>
+                        <div className='mb-1'><span className='text-amber-300 text-xs'>Longitude :</span> {msg.message.location?.data.longitude.toString()}</div>
+                      </div>
+                    </div>
+                }
+                
               </div>
             ))}
           </div>
             <div className='flex flex-row justify-between items-center gap-2'>
-            <input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              type="text"
-              placeholder="Type a message..."
-              className="w-full p-2 bg-gray-700 rounded text-white focus:outline-none focus:ring-2 focus:ring-amber-900"
-            />
-            <button onClick={handleSendMessage} className='bg-green-800 p-2 rounded text-white'>Send</button></div>
+              <input
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                type="text"
+                placeholder="Type a message..."
+                className="w-full p-2 bg-gray-700 rounded text-white focus:outline-none focus:ring-2 focus:ring-amber-900"
+              />
+              <button onClick={handleSendMessage} className='bg-green-800 p-2 rounded text-white'>Send</button>
+            </div>
+            <div className='flex flex-row justify-between items-center gap-2 mt-2'>
+              <button onClick={handleSendCommand} className='bg-green-800 p-2 rounded text-white w-full'>Send Command</button>
+              <button onClick={handleSendLocation} className='bg-green-800 p-2 rounded text-white w-full'>Send Location</button>
+            </div>
           </div>
         ) : (
           <div className="text-center text-gray-400">
