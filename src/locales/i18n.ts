@@ -1,9 +1,7 @@
-// src/i18n.ts
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
 
-// Dil dosyalarını import edin
 import en from './en.json';
 import es from './es.json';
 import de from './de.json';
@@ -34,7 +32,7 @@ i18n
     fallbackLng: 'en',
     debug: true,
     interpolation: {
-      escapeValue: false, // React zaten XSS koruması sağlar
+      escapeValue: false,
     },
   });
 

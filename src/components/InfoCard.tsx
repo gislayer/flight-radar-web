@@ -5,6 +5,9 @@ import * as turf from '@turf/turf';
 import ElevationChart from './ElevationChart';
 import { useDispatch } from 'react-redux';
 import { setPilot } from '../store/reducers/chatpilot';
+import { Modal } from 'antd';
+import MapboxAnimation from '../pages/openlayers/MapboxAnimation';
+
 
 interface InfoCardProps {
   data: FlightData | null;
@@ -21,6 +24,7 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
   const dispatch = useDispatch();
   const start_airport = data?.start_airport?.name?.split(' ').map(word => word.charAt(0).toUpperCase()).join('');
   const finish_airport = data?.finish_airport?.name?.split(' ').map(word => word.charAt(0).toUpperCase()).join('');
+  const [modal, setModal] = useState<boolean>(false);
 
   useEffect(() => {
     if (data?.path?.features?.length) {
@@ -66,14 +70,13 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
 
   useEffect(() => {
     if (data?.path?.features && pathIndex >= 0) {
-      // Mevcut irtifayı al
+
       const altitude = data.path.features[pathIndex].properties.altitude;
       setCurrentAltitude(altitude);
       var feature = data.path.features[pathIndex];
       feature.properties['type'] = data.aircraft.aircraftTypeId;
       onChange(data.path.features[pathIndex]);
 
-      // Başlangıç noktasından şimdiye kadar gidilen mesafeyi hesapla
       if (data.start_airport?.geometry) {
         const currentPoint = data.path.features[pathIndex].geometry;
         const distance = turf.distance(
@@ -169,7 +172,10 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
         </div>
 
         <div className='flex flex-row justify-between gap-2'>
-          <button onClick={()=>setPilotChatPanel(data.pilot)} className="bg-green-600 w-full hover:bg-green-700 text-white font-bold py-2 px-4 rounded-md mt-2">
+          <button onClick={()=>setModal(true)} className="bg-amber-600 w-full hover:bg-amber-500 text-white font-bold py-2 px-4 rounded-md mt-2">
+            Watch 3D
+          </button>
+          <button onClick={()=>setPilotChatPanel(data.pilot)} className="bg-green-600 w-full hover:bg-green-500 text-white font-bold py-2 px-4 rounded-md mt-2">
             Contact Pilot
           </button>
         </div>
@@ -179,6 +185,18 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
       <div>
         
       </div>
+      <Modal
+        title="3D Flight Animation"
+        open={modal}
+        onCancel={() => setModal(false)}
+        footer={null}
+        width={1000}
+      >
+        <div style={{ height: '600px' }}>
+          <MapboxAnimation path={data?.path} />
+        </div>
+      </Modal>
+
 
     </div>
   );

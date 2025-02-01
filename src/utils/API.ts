@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { clearUser } from '../store/reducers/user';
 import { createSearchParams, useNavigate } from 'react-router-dom';
 import { RootState } from '../store/store';
+import { message } from 'antd';
 const VITE_API_URL = import.meta.env.VITE_API_URL;
 
 interface GLConstructor {
@@ -137,7 +138,6 @@ class API {
   }
 
   private errHandler(err: any, data?:any) {
-    debugger;
     if (err.response.status === 401) {
       var messages = ['Unauthorized','Invalid token'];
       if(messages.includes(err.response.data.message)){
@@ -152,7 +152,7 @@ class API {
         this.logOut();
       }
     }
-    alert(err.response.data.message)
+    message.error(err.response.data.message)
     return false;
   }
 

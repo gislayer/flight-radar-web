@@ -21,9 +21,14 @@ import InfoCard from '../../components/InfoCard';
 import * as turf from '@turf/turf';
 import { Feature } from 'ol';
 import ChatPanel from '../../components/ChatPanel';
+import GoToRoute from '../../components/GoToRoute';
+import {setText, clearText} from '../../store/reducers/loader'
+import { useDispatch } from 'react-redux';
+import { message } from 'antd';
 const VITE_API_URL = import.meta.env.VITE_API_URL;
 
 const OpenLayersMap = () => {
+  const dispatch = useDispatch();
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
   const [intervalTime,setIntervalTime] = useState(5*1000*60);
@@ -45,11 +50,18 @@ const OpenLayersMap = () => {
   const [v,setData] = useState<FlightData | null>(null);
   const highlightAircraftRef = useRef<VectorLayer | null>(null);
   var api = new API({newurl:VITE_API_URL});
-
+  dispatch(clearText());
 
   const getAircraftData = async (properties:any, zoom:boolean=true)=>{
-    debugger;
+    if(zoom){
+      dispatch(setText('Route Loading...'));
+    }
     const data = await api.get(`routes/${properties['id']}`) as FlightData;
+    if(!data){
+      //message.error('Route Not Found');
+      dispatch(clearText());
+      return;
+    }
     aircraftDataRef.current = data;
     setAircraftDataStatus(true);
     sideBarStatus.current = true;
@@ -58,16 +70,20 @@ const OpenLayersMap = () => {
       properties:{altitude:0,bearing:0,date:'',id:0,speed:0,type:data.aircraft.aircraftTypeId},
       geometry:data.start_airport.geometry
     });
+    dispatch(clearText());
+    if(zoom){
+      message.success('Route Loaded');
+    }
     setPathLayer(data.path, zoom);
     setData(data);
   }
 
   const gettimestampFromZoom = (zoom:number=0)=>{
-    /*const baseTime = 3600000;
+    const baseTime = 3600000;
     const factor = Math.pow(baseTime/2000, -1/10);
     const intervalTime = Math.round(baseTime * Math.pow(factor, zoom));
-    return intervalTime*/
-    return Date.now();
+    return intervalTime
+    //return Date.now();
   }
 
   const setPathLayer = (path:Path, zoom:boolean=true)=>{
@@ -172,6 +188,7 @@ const OpenLayersMap = () => {
   }
 
   const updateLiveData = async () => {
+    if(aircraftDataRef.current?.id==1){return;}
     if(!mapInstanceRef.current) return;
     var zoom = mapInstanceRef.current.getView().getZoom();
     if(!zoom){ return;}
@@ -212,7 +229,6 @@ const OpenLayersMap = () => {
             var newFeature:any = transform(newCoord.geometry.coordinates, 'EPSG:4326', 'EPSG:3857');     
             feature.getGeometry().setCoordinates(newFeature);
             animationFrameRef.current = requestAnimationFrame(animate);
-            //xxx
             if(sideBarStatus.current && i%10==0){
               updatePathLayer();
             }
@@ -229,7 +245,7 @@ const OpenLayersMap = () => {
       }
 
     } catch(err) {
-      console.error('Canlı veri güncellenirken hata:', err);
+      console.error('Live data update error', err);
     }
   };
 
@@ -244,7 +260,7 @@ const OpenLayersMap = () => {
         return getAircraftStyle(feature.getProperties() as CurrentFlightData,'normal');
       }
     });
-    // Her 10 saniyede bir güncelle
+
     setInterval(updateLiveData, 10000);
     updateLiveData();
 
@@ -277,26 +293,54 @@ const OpenLayersMap = () => {
   const getPathLayerStyle = (feature:any)=>{
     const geometry = feature.getGeometry();
     const styles = [];
+    //beyaz 255 255 255
+    //sari 255 255 0
+    // acik mavi 0 255 255
+    // koyu mavi 0 0 255
+    // kirmizi 255 0 0
+
+
 
     if (geometry) {
       const coordinates = geometry.getCoordinates();
+
+      function getDynamicColor2(altitude: number): string {
+        if(altitude<50){
+          return '#ffffff';
+        }
+        const minAltitude = 0;
+        const maxAltitude = 14000;
+        const scale = Math.min(1, Math.max(0, (altitude - minAltitude) / (maxAltitude - minAltitude)));
+        let red, green, blue;
+      
+        if (scale <= 0.166) {
+          red = 255;
+          green = 255;
+          blue = Math.round(255 * (1 - scale/0.166));
+        } else if (scale <= 0.333) {
+          red = Math.round(255 * (1 - ((scale - 0.166) / 0.166)));
+          green = 255;
+          blue = 0;
+        } else if (scale <= 0.5) {
+          red = 0;
+          green = 255;
+          blue = Math.round(255 * ((scale - 0.333) / 0.166));
+        } else if (scale <= 0.666) {
+          red = 0;
+          green = Math.round(255 * (1 - ((scale - 0.5) / 0.166)));
+          blue = 255;
+        } else{
+          red = Math.round(255 * ((scale - 0.666) / 0.166));
+          green = 0;
+          blue = 255;
+        }
+        return `rgb(${red}, ${green}, ${blue})`;
+      }
       
       for (let i = 0; i < coordinates.length - 1; i++) {
         const altitude = feature.get('altitude');
-        let color = '#8B008B';
-        if(altitude<=2000){
-          color = '#FFFFFF';
-        }else if(altitude<=4000){
-          color = '#FFFF00';
-        }else if(altitude<=6000){
-          color = '#FFD700';
-        }else if(altitude<=8000){
-          color = '#FFA500';
-        }else if(altitude<=10000){
-          color = '#FF0000';
-        }else{
-          color = '#8B008B';
-        }
+        
+        let color = getDynamicColor2(altitude);
 
         styles.push(new Style({
           stroke: new Stroke({
@@ -546,7 +590,7 @@ const OpenLayersMap = () => {
           source.clear();
           source.addFeature(feature);
         } else {
-          source.clear(); // İmleç feature üzerinde değilse highlight'ı temizle
+          source.clear();
         }
       }
     })
@@ -645,6 +689,9 @@ const OpenLayersMap = () => {
         }}
       />
       <div className='z-10000'><ChatPanel /></div>
+      <GoToRoute onSearch={(route_id:number)=>{
+        getAircraftData({id:route_id},true);
+      }} />
     </div>
   );
 };

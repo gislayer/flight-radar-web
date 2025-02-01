@@ -1,33 +1,4 @@
 {
-    "language": "Langue",
-    "global_settings": "Paramètres globaux",
-    "device_management": "Gestion des appareils",
-    "layer_management": "Gestion des couches",
-    "authentication": "Authentification",
-    "user_management": "Gestion des utilisateurs",
-    "live_map": "Carte en direct",
-    "dashboard": "Tableau de bord",
-    "projects": "Projets",
-    "go_to_homepage": "Aller à la page d'accueil",
-    "deleted_user": "Utilisateur supprimé!",
-    "blocked_user": "Utilisateur bloqué!",
-    "welcome_verification": "Bienvenue sur la page de vérification!",
-    "verify_mail_err": "Veuillez vérifier votre email",
-    "already_logged_in": "Vous êtes déjà connecté",
-    "login_check": "Veuillez patienter. Vérification du statut de connexion!...",
-    "login_faild": "Échec de la connexion. Veuillez vérifier votre nom d'utilisateur et votre mot de passe.",
-    "login_success": "Connexion réussie!",
-    "login_with_github": "Se connecter avec GitHub",
-    "login_with_x": "Se connecter avec X",
-    "login_with_facebook": "Se connecter avec Facebook",
-    "login_with_google": "Se connecter avec Google",
-    "submit": "Soumettre",
-    "welcome_login": "Bienvenue sur la page de connexion",
-    "password_err": "Veuillez entrer votre mot de passe!",
-    "password": "Mot de passe",
-    "login_username_err": "Veuillez entrer votre nom d'utilisateur ou email!",
-    "login_username": "Email ou nom d'utilisateur",
-    "bpm": "Solutions de Scanner de Rue",
-    "korte_logo": "Logo Korte"
-  }
+  "language": "Langue"
+}
   

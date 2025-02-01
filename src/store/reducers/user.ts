@@ -1,13 +1,11 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-// State için TypeScript türü
 interface UserState {
-  user: { [key: string]: any } | null;  // `user` objesinin yapısına göre burayı detaylandırabilirsiniz
+  user: { [key: string]: any } | null;
   token: string | null;
-  form: { [key: string]: any } | null;  // `form` objesinin yapısına göre burayı detaylandırabilirsiniz
+  form: { [key: string]: any } | null;
 }
 
-// Initial State
 const initialState: UserState = {
   user: JSON.parse(localStorage.getItem('user') || 'null'),
   token: localStorage.getItem('token'),
@@ -22,7 +20,6 @@ const userSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
 
-      // Local Storage'a kaydet
       localStorage.setItem('user', JSON.stringify(action.payload.user));
       localStorage.setItem('token', action.payload.token);
     },
@@ -37,7 +34,6 @@ const userSlice = createSlice({
     clearUser: (state) => {
       state.user = null;
       state.token = null;
-      // Local Storage'dan sil
       localStorage.removeItem('user');
       localStorage.removeItem('token');
     },

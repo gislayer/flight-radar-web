@@ -7,7 +7,7 @@ import { createEncryptor } from '../utils/encryptor';
 import userReducer from './reducers/user';
 import loaderReducer from './reducers/loader';  
 import chatPilotReducer from './reducers/chatpilot';
-// rootReducer'ı combineReducers ile birleştiriyoruz
+
 const rootReducer:any = combineReducers({
   user: userReducer,
   loader: loaderReducer,
@@ -28,7 +28,6 @@ const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: {
-        // Bu eylemleri seri hale getirme kontrolünden muaf tut
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
     }),

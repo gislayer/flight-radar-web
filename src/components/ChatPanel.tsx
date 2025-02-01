@@ -4,12 +4,7 @@ import { clearPilot } from '../store/reducers/chatpilot';
 import { useState, useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { SendMessage } from '../types';
-
-interface ChatMessage {
-    pilotId: number;
-    content: string;
-    timestamp: number;
-}
+import { message as antdmessage } from 'antd';
 
 const ChatPanel = () => {
   const [selectedPilot, setSelectedPilot] = useState<number | null>(null);
@@ -32,7 +27,7 @@ const ChatPanel = () => {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Socket.IO bağlantısı kuruldu');
+      console.log('Socket.IO connected');
     });
 
     socket.on('left', (data:any) => {
@@ -55,7 +50,6 @@ const ChatPanel = () => {
     });
 
     socket.on('joined', (data:any) => {
-      debugger;
       var route_id:number = data.route_id;
       var user:any = data.user;
       var route_users:number[] = data.route_users;
@@ -140,12 +134,12 @@ const ChatPanel = () => {
       setIsOpen(true);
       setIsMinimized(false);
     }else{
-      alert('Please select a pilot to open the chat');
+      antdmessage.warning('Please select a pilot to open the chat');
     }
-    
   };
 
   const handlePilotClick = (pilotId: number) => {
+    setMessages([]);
     setSelectedPilot(pilotId);
   };
 
@@ -203,7 +197,6 @@ const ChatPanel = () => {
   }
 
   const handleSendCommand = () => {
-    debugger;
     if (socketRef.current && selectedPilot) {
       var newCommand:SendMessage = {
         user_id:1,
@@ -227,7 +220,6 @@ const ChatPanel = () => {
   };
 
   const handleSendLocation = () => {
-    debugger;
     if (socketRef.current && selectedPilot) {
       var newLocation:SendMessage = {
         user_id:1,

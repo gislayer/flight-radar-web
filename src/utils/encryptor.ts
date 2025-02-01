@@ -1,4 +1,3 @@
-// src/utils/encryptor.ts
 import CryptoJS from 'crypto-js';
 import { Transform } from 'redux-persist';
 
