@@ -11,7 +11,7 @@ interface Props {
   speed?: number; // Animasyon hızı çarpanı (varsayılan: 1)
 }
 
-const MapboxAnimation = ({ path, speed = 1 }: Props) => {
+const MapboxAnimation = ({ path, speed = 10 }: Props) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
@@ -143,6 +143,19 @@ const MapboxAnimation = ({ path, speed = 1 }: Props) => {
           'raster-opacity': 1
         }
       });
+
+      // Terrain Layer
+      /*map.current?.addSource('mapbox-dem', {
+        'type': 'raster-dem',
+        'url': 'mapbox://mapbox.mapbox-terrain-dem-v1',
+        'tileSize': 512,
+        'maxzoom': 14
+      });
+
+      map.current?.setTerrain({
+        'source': 'mapbox-dem',
+        'exaggeration': 1.5
+      });*/
 
       // Add sky layer
       map.current?.addLayer({
@@ -400,10 +413,15 @@ const MapboxAnimation = ({ path, speed = 1 }: Props) => {
 
   const togglePlay = () => {
     debugger;
-    var hiz = 10;
-    intervar.current = setInterval(() => {
-      setCurrentIndex(index.current + 1);
-    }, 1000 / hiz);
+    if(isPlaying==false){
+      setIsPlaying(true);
+      intervar.current = setInterval(() => {
+        setCurrentIndex(index.current + 1);
+      }, 1000 / speed);
+    }else{
+      setIsPlaying(false);
+      clearInterval(intervar.current);
+    }
   };
 
   const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -486,7 +504,7 @@ const MapboxAnimation = ({ path, speed = 1 }: Props) => {
           </div>
       </div>
       
-      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 p-4 flex items-center gap-4">
+      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-80 p-4 flex items-center gap-4">
         <button 
           onClick={togglePlay}
           className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
@@ -504,7 +522,7 @@ const MapboxAnimation = ({ path, speed = 1 }: Props) => {
         />
 
         <div className="flex items-center gap-2">
-          <span className="text-white">Hız:</span>
+          <span className="text-white">Frame Speed:</span>
           <input
             type="number"
             min="0.1"
@@ -512,7 +530,7 @@ const MapboxAnimation = ({ path, speed = 1 }: Props) => {
             step="0.1"
             value={animationSpeed}
             onChange={handleSpeedChange}
-            className="w-20 px-2 py-1 rounded"
+            className="w-12 text-center bg-gray-300 px-2 py-1 rounded"
           />
           <span className="text-white">x</span>
         </div>

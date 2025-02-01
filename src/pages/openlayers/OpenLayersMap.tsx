@@ -19,7 +19,7 @@ import { Zoom } from 'ol/control';
 import { XYZ } from 'ol/source';
 import InfoCard from '../../components/InfoCard';
 import * as turf from '@turf/turf';
-import { Feature } from 'ol';
+import { Feature, Overlay } from 'ol';
 import ChatPanel from '../../components/ChatPanel';
 import GoToRoute from '../../components/GoToRoute';
 import {setText, clearText} from '../../store/reducers/loader'
@@ -79,7 +79,7 @@ const OpenLayersMap = () => {
   }
 
   const gettimestampFromZoom = (zoom:number=0)=>{
-    const baseTime = 3600000;
+    const baseTime = 360000;
     const factor = Math.pow(baseTime/2000, -1/10);
     const intervalTime = Math.round(baseTime * Math.pow(factor, zoom));
     return intervalTime
@@ -481,8 +481,7 @@ const OpenLayersMap = () => {
   }
 
   const getCurrentTileURL = ()=>{
-    const zoom = mapInstanceRef.current?.getView().getZoom();
-    const datetime = gettimestampFromZoom(zoom);
+    const datetime = Date.now();
     return `http://localhost:2004/lastpoints/${datetime}/{z}/{x}/{y}.pbf`;
   }
 
@@ -503,7 +502,7 @@ const OpenLayersMap = () => {
         lastUpdateTimeRef.current = Date.now();
         var source = vectorTileLayerRef.current?.getSource() as VectorTileSource;
         source.setUrl(getCurrentTileURL());
-      }, 200000);
+      }, datetime);
     }
     
     /*return () => {
@@ -586,11 +585,21 @@ const OpenLayersMap = () => {
       const source = highlightAircraftRef.current?.getSource();
       if(source){
         if(features && features.length > 0){
-          const feature = features[0];
+          debugger;
+          const feature:any = features[0];
+          const properties = feature.getProperties() as CurrentFlightData;
           source.clear();
           source.addFeature(feature);
+          const coordinates = feature.getFlatCoordinates();
+          if (coordinates) {
+            addPopupOverlay(properties, coordinates);
+          }
         } else {
           source.clear();
+          const overlays = mapInstanceRef.current?.getOverlays().getArray();
+          overlays?.forEach((overlay:any) => {
+            mapInstanceRef.current?.removeOverlay(overlay);
+          });
         }
       }
     })
@@ -624,6 +633,30 @@ const OpenLayersMap = () => {
       }
     };
   }, []);
+
+  const addPopupOverlay = (info:CurrentFlightData, coord:number[])=>{
+    const overlays = mapInstanceRef.current?.getOverlays().getArray();
+    overlays?.forEach((overlay:any) => {
+      mapInstanceRef.current?.removeOverlay(overlay);
+    });
+    const element = document.createElement('div');
+    element.className = 'ol-popup';
+    element.innerHTML = `
+      <div class="mapPopup">
+        <div>Route ID: ${info.id}</div>
+        <div>Altitude: ${info.altitude} m</div>
+        <div>Speed: ${info.speed} km/s</div>
+      </div>
+    `;
+    const popup = new Overlay({
+      element: element,
+      positioning: 'bottom-center',
+      stopEvent: false,
+      offset: [0, -22]
+    });
+    popup.setPosition(coord);
+    mapInstanceRef.current?.addOverlay(popup);
+  }
 
   const onSidebarClose = ()=>{
     setAircraftDataStatus(false);
