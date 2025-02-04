@@ -7,11 +7,11 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 import { FeatureCollection } from 'geojson';
 
 interface Props {
-  path: any; // GeoJSON path with properties
-  speed?: number; // Animasyon hızı çarpanı (varsayılan: 1)
+  path: any;
+  speed?: number;
 }
 
-const MapboxAnimation = ({ path, speed = 2 }: Props) => {
+const MapboxAnimation = ({ path, speed = 1 }: Props) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const marker = useRef<mapboxgl.Marker | null>(null);
@@ -41,30 +41,24 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
       const currentDate = new Date(currentPoint.properties.date);
       const nextDate = new Date(nextPoint.properties.date);
       
-      // İki nokta arasındaki süreyi saniye cinsinden hesapla
       const timeDiffSeconds = (nextDate.getTime() - currentDate.getTime()) / 1000;
       
-      // İki nokta arasındaki mesafeyi metre cinsinden hesapla
       const distance = turf.distance(
         currentPoint.geometry.coordinates,
         nextPoint.geometry.coordinates,
         {units: 'meters'}
       );
 
-      // Ortalama hızı hesapla (metre/saniye)
       const speed = distance / timeDiffSeconds;
 
-      // İki nokta arasındaki açıyı hesapla
       const bearing = turf.bearing(
         currentPoint.geometry.coordinates,
         nextPoint.geometry.coordinates
       );
 
-      // Her saniye için yeni bir nokta oluştur
       for (let second = 0; second < timeDiffSeconds; second++) {
         const fraction = second / timeDiffSeconds;
         
-        // İki nokta arasında interpolasyon yap
         const currentCoord = turf.along(
           turf.lineString([
             currentPoint.geometry.coordinates,
@@ -74,11 +68,9 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
           {units: 'meters'}
         );
 
-        // İrtifa için de interpolasyon yap
         const altitude = currentPoint.properties.altitude + 
           (nextPoint.properties.altitude - currentPoint.properties.altitude) * fraction;
 
-        // Yeni feature oluştur
         steps.features.push({
           type: "Feature",
           geometry: {
@@ -101,7 +93,7 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
   //path = getSteps(path);
 
   const adjustModelHeight = (modelAltitude: number, terrainAltitude: number): number => {
-    const offset = 10; // Modelin yerin üstünde kalması için bir ofset
+    const offset = 10;
     return Math.max(modelAltitude, terrainAltitude + offset);
   };
 
@@ -123,7 +115,6 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
     });
 
     map.current.on('load', () => {
-      // Add satellite imagery
       map.current?.addSource('satellite', {
         'type': 'raster',
         'tiles': [
@@ -157,7 +148,6 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
         'exaggeration': 1.5
       });*/
 
-      // Add sky layer
       map.current?.addLayer({
         'id': 'sky',
         'type': 'sky',
@@ -177,7 +167,6 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
         setFark(dest as any);
       });
 
-      // Add 3D airplane model
       const modelOrigin = path.features[0].geometry.coordinates;
       const modelAltitude = path.features[0].properties.altitude;
       const modelRotate = [Math.PI/2, 0, path.features[0].properties.bearing * Math.PI / 180];
@@ -279,9 +268,8 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
   }, []);
 
   const getAwesomeRange = (altitude:number) => {
-    // Yükseklik aralıklarına göre kamera ayarları
     var ranges = [
-      {minAlt:0, maxAlt:50, zoom:18.10, pitch:60, len:50},      // Alçak irtifa
+      {minAlt:0, maxAlt:50, zoom:18.10, pitch:60, len:50},
       {minAlt:50, maxAlt:100, zoom:15.5, pitch:60, len:300},
       {minAlt:100, maxAlt:500, zoom:15, pitch:60, len:500},
       {minAlt:500, maxAlt:1000, zoom:14, pitch:60, len:800},
@@ -301,10 +289,8 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
       {minAlt:14000, maxAlt:15000, zoom:6, pitch:60, len:13500},
     ];
 
-    // Verilen yüksekliğe uygun aralığı bul
     const range = ranges.find(range => altitude >= range.minAlt && altitude <= range.maxAlt);
     
-    // Eğer uygun aralık bulunamazsa en yüksek değerleri kullan
     if (!range) {
       return ranges[ranges.length - 1];
     }
@@ -321,12 +307,12 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
     var calculatedZoom = range.zoom;
     var len = range.len;
     var newCoord = turf.destination(turf.point([lng, lat]), len, bearing, {'units':'meters'});
-    map.current?.easeTo({
+    map.current?.flyTo({
       center: newCoord.geometry.coordinates as [number, number],
       zoom: calculatedZoom,
       pitch: 0,
       bearing: bearing,
-      duration: 0,
+      duration: 2000,
       essential: true
     });
     animationInterval.current = setInterval(() => {
@@ -353,7 +339,7 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
   }
 
   const changeModelPosition = async (lat: any, lng: any, altitude: any, bearing: any) => {
-    var terrainAltitude:any = await getTerrainAltitude(lat, lng); // Yerin yüksekliğini alın
+    var terrainAltitude:any = await getTerrainAltitude(lat, lng);
     terrainAltitude = terrainAltitude==null?0:terrainAltitude;
     const adjustedAltitude = adjustModelHeight(altitude, terrainAltitude);
 
@@ -381,43 +367,14 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
     map.current?.triggerRepaint();
   }
 
-  const animate = () => {
-    if (!map.current || currentIndex >= path.features.length - 1) {
-      setIsPlaying(false);
-      return;
-    }
-
-    const currentFeature = path.features[currentIndex];
-    const nextFeature = path.features[currentIndex + 1];
-    
-    changeModelPosition(
-      nextFeature.geometry.coordinates[1], 
-      nextFeature.geometry.coordinates[0], 
-      nextFeature.properties.altitude, 
-      nextFeature.properties.bearing
-    );
-
-    map.current.easeTo({
-      center: nextFeature.geometry.coordinates,
-      duration: 1000 / animationSpeed, // Hız çarpanına göre süreyi ayarla
-      pitch: 60
-    });
-
-    setTimeout(() => {
-      setCurrentIndex(prev => prev + 1);
-      if (isPlaying) {
-        animate();
-      }
-    }, 1000 / animationSpeed); // Hız çarpanına göre bekleme süresini ayarla
-  };
-
   const togglePlay = () => {
-    debugger;
     if(isPlaying==false){
+      debugger;
       setIsPlaying(true);
-      intervar.current = setInterval(() => {
+      setCurrentIndex(index.current + 1);
+      /*intervar.current = setInterval(() => {
         setCurrentIndex(index.current + 1);
-      }, 1000 / speed);
+      }, 5000/animationSpeed);*/
     }else{
       setIsPlaying(false);
       clearInterval(intervar.current);
@@ -433,9 +390,86 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
     setAnimationSpeed(parseFloat(e.target.value));
   };
 
+  const animateRealFlight = (startPoint: any, endPoint: any) => {
+    const line = turf.lineString([
+      startPoint.geometry.coordinates,
+      endPoint.geometry.coordinates
+    ]);
+    const distance = turf.length(line, { units: 'kilometers' });
+  
+    const duration = 1000 / animationSpeed;
+  
+    const steps = 20;
+    const coordinates: number[][] = [];
+    const altitudes: number[] = [];
+    const bearings: number[] = [];
+  
+    for (let i = 0; i <= steps; i++) {
+      const fraction = i / steps;
+  
+      const point = turf.along(line, distance * fraction, { units: 'kilometers' });
+      coordinates.push(point.geometry.coordinates);
+  
+      const altitude = startPoint.properties.altitude +
+        (endPoint.properties.altitude - startPoint.properties.altitude) * fraction;
+      altitudes.push(altitude);
+  
+      const bearing = startPoint.properties.bearing +
+        (endPoint.properties.bearing - startPoint.properties.bearing) * fraction;
+      bearings.push(bearing);
+    }
+  
+    const animateReal = (i:number) => {
+      if (i <= steps) {
+        changeModelPosition(
+          coordinates[i][1],
+          coordinates[i][0],
+          altitudes[i],
+          bearings[i]
+        );
+  
+        map.current?.easeTo({
+          center: coordinates[i] as [number, number],
+          duration: 0,
+          pitch: 60
+        });
+  
+        
+        setTimeout(() => {
+          i++;
+          animateReal(i);
+        }, duration);
+      }else{
+        if(isPlaying){
+          index.current = currentIndex+1;
+          setCurrentIndex(currentIndex+1);
+        }
+      }
+    };
+  
+    animateReal(0);
+  };
+
+  useEffect(()=>{
+    if(isPlaying==false){
+      var p1 = path.features[currentIndex];
+      changeModelPosition(
+        p1.geometry.coordinates[1],
+        p1.geometry.coordinates[0],
+        p1.properties.altitude,
+        p1.properties.bearing
+      );
+    }
+  },[currentIndex,animationSpeed]);
+
   useEffect(() => {
-    debugger;
-    var pathItem = path.features[currentIndex];
+    if(isPlaying){
+      var p1 = path.features[currentIndex];
+      var p2 = path.features[currentIndex+1];
+      animateRealFlight(p1, p2);
+    }
+    
+    /*var pathItem = path.features[currentIndex];
     index.current = currentIndex;
 
     var lng = pathItem.geometry.coordinates[0];
@@ -448,12 +482,12 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
     var newCoord = turf.destination(turf.point([lng, lat]), len, bearing, {'units':'meters'});
     map.current?.easeTo({
       center: newCoord.geometry.coordinates as [number, number],
-      //zoom: calculatedZoom,
+      zoom: calculatedZoom,
       pitch: range.pitch,
       bearing: bearing,
-      duration: 300,
+      duration: 0,
       essential: true
-    });
+    });*/
     /*map.current?.easeTo({
       center: pathItem.geometry.coordinates,
       zoom: range.zoom,
@@ -472,19 +506,19 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
           </div>
           <div>
             <div>Speed</div>
-            <div>{path.features[currentIndex].properties.speed.toFixed(2)} knot</div>
+            <div>{path.features[currentIndex]?.properties?.speed.toFixed(2)} knot</div>
           </div>
           <div>
             <div>Bearing</div>
-            <div>{path.features[currentIndex].properties.bearing.toFixed(2)}°</div>
+            <div>{path.features[currentIndex]?.properties?.bearing.toFixed(2)}°</div>
           </div>
           <div>
             <div>Altitude</div>
-            <div>{path.features[currentIndex].properties.altitude.toFixed(2)} m</div>
+            <div>{path.features[currentIndex]?.properties?.altitude.toFixed(2)} m</div>
           </div>
           <div>
             <div>Date</div>
-            <div>{new Date(path.features[currentIndex].properties.timestamp).toLocaleString()}</div>
+            <div>{new Date(path.features[currentIndex].properties?.timestamp).toLocaleString()}</div>
           </div>
           <div>
             <div>Lat Lng</div>

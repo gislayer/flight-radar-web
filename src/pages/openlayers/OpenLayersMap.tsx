@@ -80,7 +80,7 @@ const OpenLayersMap = () => {
 
   const gettimestampFromZoom = (zoom:number=0)=>{
     const baseTime = 360000;
-    const factor = Math.pow(baseTime/2000, -1/10);
+    const factor = Math.pow(baseTime/1000, -1/10);
     const intervalTime = Math.round(baseTime * Math.pow(factor, zoom));
     return intervalTime
     //return Date.now();
@@ -188,12 +188,13 @@ const OpenLayersMap = () => {
   }
 
   const updateLiveData = async () => {
+    
     if(aircraftDataRef.current?.id==1){return;}
     if(!mapInstanceRef.current) return;
     var zoom = mapInstanceRef.current.getView().getZoom();
     if(!zoom){ return;}
     if(zoom < 10) return;
-
+    debugger;
     const extent = mapInstanceRef.current.getView().calculateExtent();
     const bbox = transformExtent(extent, 'EPSG:3857', 'EPSG:4326');
 
