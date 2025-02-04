@@ -1,0 +1,11 @@
+Model Information:
+* title:	Airbus A320 S7 Airlines
+* source:	https://sketchfab.com/3d-models/airbus-a320-s7-airlines-3ddd1bb9dd5e4d1eb7c6e082e5e75178
+* author:	mamont nikita (https://sketchfab.com/mamontnikita62)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Airbus A320 S7 Airlines" (https://sketchfab.com/3d-models/airbus-a320-s7-airlines-3ddd1bb9dd5e4d1eb7c6e082e5e75178) by mamont nikita (https://sketchfab.com/mamontnikita62) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

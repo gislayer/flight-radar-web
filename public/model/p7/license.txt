@@ -1,0 +1,11 @@
+Model Information:
+* title:	Fokker aircraft with interior
+* source:	https://sketchfab.com/3d-models/fokker-aircraft-with-interior-cc46a844f194450384eb59187a6efd46
+* author:	Henry Chi (https://sketchfab.com/henrychi)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Fokker aircraft with interior" (https://sketchfab.com/3d-models/fokker-aircraft-with-interior-cc46a844f194450384eb59187a6efd46) by Henry Chi (https://sketchfab.com/henrychi) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

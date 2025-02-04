@@ -441,7 +441,7 @@ const OpenLayersMap = () => {
     return [
       new Style({
         image: new Icon({
-          src: `/icons/plane${props.type}.png`,
+          src: `/icons/m${props.type}.png`,
           height: size,
           rotation: (props?.bearing || props.bearing) * Math.PI/180, 
           opacity: 0.7,
@@ -451,7 +451,7 @@ const OpenLayersMap = () => {
       }),
       new Style({
         image: new Icon({
-          src: `/icons/plane${props.type}.png`,
+          src: `/icons/m${props.type}.png`,
           height: size,
           color: color,
           rotation: (props?.bearing || props.bearing) * Math.PI/180,

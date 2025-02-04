@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
-import * as turf from '@turf/turf';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { FeatureCollection } from 'geojson';
+import * as turf from '@turf/turf';
 
 interface Props {
   path: any; // GeoJSON path with properties
@@ -27,6 +27,18 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
   const [pitch, setPitch] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(0);
   const [fark, setFark] = useState<number>(0);
+
+  var gltfs:Record<string, {url:string, scale:number, angles:number[]}> = {
+    '1':{url:'/model/p1xf35/scene.gltf', scale:0.5, angles:[0,-90,0]},           
+    '2':{url:'/model/p2xpredator/scene.gltf', scale:0.05, angles:[0,90,0]},           
+    '3':{url:'/model/p3/scene.gltf', scale:10, angles:[0,0,0]},           
+    '4':{url:'/model/p4xb747/scene.gltf', scale:4, angles:[0,0,0]},           
+    '5':{url:'/model/p5xa320/scene.gltf', scale:0.025, angles:[0,0,0]},           
+    '6':{url:'/model/p6xa380/scene.gltf', scale:1, angles:[0,180,0]},           
+    '7':{url:'/model/p7xembraer300/scene.gltf', scale:2, angles:[0,0,0]},           
+    '8':{url:'/model/p8/scene.gltf', scale:0.025, angles:[0,0,0]},           
+  };
+  var gltf = gltfs[path.features[0].properties.type];
 
   const getSteps = (path:any) => {
     const steps: any = {
@@ -180,7 +192,8 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
       // Add 3D airplane model
       const modelOrigin = path.features[0].geometry.coordinates;
       const modelAltitude = path.features[0].properties.altitude;
-      const modelRotate = [Math.PI/2, 0, path.features[0].properties.bearing * Math.PI / 180];
+      
+      const modelRotate = [Math.PI/2+(gltf.angles[0] * Math.PI / 180), (path.features[0].properties.bearing * Math.PI / 180)+(gltf.angles[1] * Math.PI / 180), 0+(gltf.angles[2] * Math.PI / 180)];
 
       const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
         modelOrigin,
@@ -213,11 +226,13 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
           const directionalLight2 = new THREE.DirectionalLight(0xffffff);
           directionalLight2.position.set(0, 70, 100).normalize();
           this.scene.add(directionalLight2);
+          
 
           const loader = new GLTFLoader();
-          loader.load('/model/scene.gltf', (gltf:any) => {
-            this.scene.add(gltf.scene);
-            this.scene.scale.set(0.025,0.025,0.025);
+          
+          loader.load(`${gltf.url}`, (gltf_file:any) => {
+            this.scene.add(gltf_file.scene);
+            this.scene.scale.set(gltf.scale,gltf.scale,gltf.scale);
           });
 
           this.renderer = new THREE.WebGLRenderer({
@@ -352,6 +367,20 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
     }, 50);
   }
 
+  const getCameraOffset = (altitude:number, pitchDegrees:number) => {
+    const pitchRadians = pitchDegrees * (Math.PI / 180);
+    return altitude * Math.tan(pitchRadians);
+  }
+
+  const getZoomLevelFromAltitude = (altitude:number) => {
+    debugger;
+    const C = 26000000;
+    var zoomLevel = Math.log2(C / altitude);
+    if(zoomLevel==Infinity){return 18;}
+    if(zoomLevel>18.5){return 18;}
+    return zoomLevel;
+  }
+
   const changeModelPosition = async (lat: any, lng: any, altitude: any, bearing: any) => {
     var terrainAltitude:any = await getTerrainAltitude(lat, lng); // Yerin yüksekliğini alın
     terrainAltitude = terrainAltitude==null?0:terrainAltitude;
@@ -361,7 +390,7 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
     const modelAltitude = adjustedAltitude;
     var bearingRad = bearing * Math.PI / 180;
     var newBearing = Math.PI - bearingRad;
-    const modelRotate = [Math.PI/2, newBearing, 0];
+    const modelRotate = [Math.PI/2+(gltf.angles[0] * Math.PI / 180), newBearing+(gltf.angles[1] * Math.PI / 180), 0+(gltf.angles[2] * Math.PI / 180)];
 
     const modelAsMercatorCoordinate = mapboxgl.MercatorCoordinate.fromLngLat(
       modelOrigin,
@@ -397,10 +426,14 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
       nextFeature.properties.bearing
     );
 
+    debugger;
+    var zoomLevel = getZoomLevelFromAltitude(nextFeature.properties.altitude);
+
     map.current.easeTo({
       center: nextFeature.geometry.coordinates,
       duration: 1000 / animationSpeed, // Hız çarpanına göre süreyi ayarla
-      pitch: 60
+      pitch: 0,
+      zoom: zoomLevel
     });
 
     setTimeout(() => {
@@ -433,32 +466,75 @@ const MapboxAnimation = ({ path, speed = 2 }: Props) => {
     setAnimationSpeed(parseFloat(e.target.value));
   };
 
+  const addStep = (lat:number, lng:number, altitude:number, bearing:number) => {
+    changeModelPosition(lat, lng, altitude, bearing);
+    var zoomLevel = getZoomLevelFromAltitude(altitude);
+    var offset = getCameraOffset(altitude, 60);
+    var newCoord2 = turf.destination(turf.point([lng, lat]), offset, bearing, {'units':'meters'});
+    map.current?.easeTo({
+      center: newCoord2.geometry.coordinates as [number, number],
+      zoom: zoomLevel,
+      pitch: 60,
+      bearing: bearing,
+      duration: 0,
+      essential: true
+    });
+  }
+
+  const animateRealFlight = (startPoint: any, endPoint: any) => {
+    const line = turf.lineString([
+      startPoint.geometry.coordinates,
+      endPoint.geometry.coordinates
+    ]);
+    const distance = turf.length(line, { units: 'kilometers' });
+    const steps = 10;
+    const coordinates: number[][] = [];
+    const altitudes: number[] = [];
+    const bearings: number[] = [];
+    for (let i = 0; i <= steps; i++) {
+      const fraction = i / steps;
+  
+      const point = turf.along(line, distance * fraction, { units: 'kilometers' });
+      coordinates.push(point.geometry.coordinates);
+  
+      const altitude = startPoint.properties.altitude +
+        (endPoint.properties.altitude - startPoint.properties.altitude) * fraction;
+      altitudes.push(altitude);
+  
+      const bearing = startPoint.properties.bearing +
+        (endPoint.properties.bearing - startPoint.properties.bearing) * fraction;
+      bearings.push(bearing);
+    }
+  
+    return {coordinates, altitudes, bearings};
+  };
+
   useEffect(() => {
     debugger;
     var pathItem = path.features[currentIndex];
     index.current = currentIndex;
-
+    var nextItem = path.features[currentIndex+1];
     var lng = pathItem.geometry.coordinates[0];
     var lat = pathItem.geometry.coordinates[1];
     var bearing = pathItem.properties.bearing;
-    changeModelPosition(pathItem.geometry.coordinates[1], pathItem.geometry.coordinates[0], pathItem.properties.altitude, pathItem.properties.bearing);
-    var range:any = getAwesomeRange(pathItem.properties.altitude);
-    var calculatedZoom = range.zoom;
-    var len = range.len;
-    var newCoord = turf.destination(turf.point([lng, lat]), len, bearing, {'units':'meters'});
-    map.current?.easeTo({
-      center: newCoord.geometry.coordinates as [number, number],
-      //zoom: calculatedZoom,
-      pitch: range.pitch,
-      bearing: bearing,
-      duration: 300,
-      essential: true
-    });
-    /*map.current?.easeTo({
-      center: pathItem.geometry.coordinates,
-      zoom: range.zoom,
-      pitch: 0
-    });*/
+    var altitude = pathItem.properties.altitude;
+    addStep(lat, lng, altitude, bearing);
+    if(nextItem){
+      debugger;
+      var stepinfo = animateRealFlight(pathItem, path.features[currentIndex+1]);
+      var intrvl = setInterval(() => {
+        var c = stepinfo.coordinates[0];
+        var a = stepinfo.altitudes[0];
+        var b = stepinfo.bearings[0];
+        addStep(c[1], c[0], a, b);
+        stepinfo.coordinates.shift();
+        stepinfo.altitudes.shift();
+        stepinfo.bearings.shift();
+        if(stepinfo.coordinates.length==0){clearInterval(intrvl);}
+      }, 100);
+    }
+    
+
   }, [currentIndex, animationSpeed]);
 
   return (

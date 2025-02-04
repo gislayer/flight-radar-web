@@ -1,0 +1,11 @@
+Model Information:
+* title:	Mq-9 Predator
+* source:	https://sketchfab.com/3d-models/mq-9-predator-217fa48d27844d62a0db30b2e7e28dcd
+* author:	Gorgytz (https://sketchfab.com/andrej.zapasnik)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Mq-9 Predator" (https://sketchfab.com/3d-models/mq-9-predator-217fa48d27844d62a0db30b2e7e28dcd) by Gorgytz (https://sketchfab.com/andrej.zapasnik) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

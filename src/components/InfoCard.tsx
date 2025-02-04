@@ -193,7 +193,7 @@ const InfoCard = ({ data, onChange, onClose, events }: InfoCardProps) => {
         width={1000}
       >
         <div style={{ height: '600px' }}>
-          <MapboxAnimation path={data?.path} speed={2} />
+          <MapboxAnimation path={data?.path} speed={1} />
         </div>
       </Modal>
 
